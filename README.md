@@ -15,10 +15,11 @@ uv run cv1-opencv-baseline val -o results/opencv
 输出内容：
 
 - `results/opencv/*.jpg`：缩放后的检测可视化图片，绿色圆轮廓表示检测结果，红点表示圆心。
+- `results/opencv/*_edges.png`：与 Hough 检测使用相同缩放、高斯平滑和阈值的 Canny 二值边缘图。
 - `results/opencv/report.json`：每张图片的检测数量、圆心坐标、半径和耗时。
 
-默认参数针对当前测试集设置为 `max-dimension=800`、`blur-kernel=21`、
-`param2=25`、`min-radius=80`、`max-radius=400`。高斯平滑用于在
+默认参数针对当前测试集设置为 `max-dimension=800`、`blur-kernel=17`、
+`param2=32`、`min-radius=120`、`max-radius=400`。高斯平滑用于在
 Hough 投票前抑制织物的短周期纹理；它属于 OpenCV 基线的预处理，不是
 后续自定义 Hough 实现之外的额外检测器。可以通过命令行参数调整：
 

@@ -36,13 +36,13 @@ def detect_circles(
     dp: float = 1.2,
     min_dist: float = 180.0,
     param1: float = 100.0,
-    param2: float = 25.0,
-    min_radius: int = 80,
+    param2: float = 32.0,
+    min_radius: int = 120,
     max_radius: int = 400,
     max_dimension: int = 800,
-    blur_kernel: int = 21,
+    blur_kernel: int = 17,
 ) -> tuple[list[Circle], np.ndarray]:
-    """Detect circles and return them in the original image coordinates."""
+    """预处理图像并调用 OpenCV HoughCircles，返回原图坐标下的圆。"""
     if image is None or image.ndim not in (2, 3):
         raise ValueError("image must be a grayscale or color image")
 
@@ -81,7 +81,7 @@ def detect_circles(
 
 
 def annotate(image: np.ndarray, circles: list[Circle], scale: float) -> np.ndarray:
-    """Draw detections on the scaled image used by the detector."""
+    """在缩放后的图像上绘制圆轮廓、圆心和检测编号。"""
     result = image.copy()
     for index, circle in enumerate(circles, start=1):
         center = (round(circle.x * scale), round(circle.y * scale))
@@ -102,6 +102,7 @@ def annotate(image: np.ndarray, circles: list[Circle], scale: float) -> np.ndarr
 
 
 def process_file(path: Path, output_dir: Path, **parameters: object) -> ImageResult:
+    """处理单张图片，同时保存检测结果图和 Canny 边缘图。"""
     image = cv2.imread(str(path), cv2.IMREAD_COLOR)
     if image is None:
         raise ValueError(f"unable to read image: {path}")
@@ -110,33 +111,41 @@ def process_file(path: Path, output_dir: Path, **parameters: object) -> ImageRes
     circles, resized = detect_circles(image, **parameters)
     elapsed_ms = (time.perf_counter() - started) * 1000
     scale = resized.shape[1] / image.shape[1]
+    gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+    blur_kernel = int(parameters["blur_kernel"])
+    param1 = float(parameters["param1"])
+    blurred = cv2.GaussianBlur(gray, (blur_kernel, blur_kernel), 0)
+    edges = cv2.Canny(blurred, param1 / 2, param1)
     annotated = annotate(resized, circles, scale)
     output_dir.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(output_dir / path.name), annotated)
+    cv2.imwrite(str(output_dir / f"{path.stem}_edges.png"), edges)
     return ImageResult(path.name, elapsed_ms, circles)
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """创建 OpenCV 基线程序的命令行参数解析器。"""
     parser = argparse.ArgumentParser(description="OpenCV coin localization baseline")
     parser.add_argument("input", type=Path, help="an image file or a directory of images")
     parser.add_argument("-o", "--output", type=Path, default=Path("results/opencv"))
     parser.add_argument("--dp", type=float, default=1.2)
     parser.add_argument("--min-dist", type=float, default=180.0)
     parser.add_argument("--param1", type=float, default=100.0)
-    parser.add_argument("--param2", type=float, default=25.0)
-    parser.add_argument("--min-radius", type=int, default=80)
+    parser.add_argument("--param2", type=float, default=32.0)
+    parser.add_argument("--min-radius", type=int, default=120)
     parser.add_argument("--max-radius", type=int, default=400)
     parser.add_argument("--max-dimension", type=int, default=800)
     parser.add_argument(
         "--blur-kernel",
         type=int,
-        default=21,
+        default=17,
         help="odd Gaussian blur kernel; larger values suppress periodic texture",
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
+    """批量处理输入图片，并保存 JSON 检测报告。"""
     args = build_parser().parse_args(argv)
     input_path: Path = args.input
     paths = sorted(input_path.glob("*.jpg")) if input_path.is_dir() else [input_path]
