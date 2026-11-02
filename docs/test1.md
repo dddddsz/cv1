@@ -17,8 +17,10 @@ uv run cv1-opencv-baseline val -o results/opencv
 
 ## 2. 实验配置
 
-当前测试集保留 15 张同类像素尺寸的图片；`val/2.jpg` 和 `val/3.jpg`
-因像素尺寸与其他样本不同而删除。输入图片首先按最长边缩放到 `800` 像素，再进行高斯平滑和
+普通背景测试集位于 `val/normal/`，共 11 张；`val/2.jpg` 和 `val/3.jpg`
+因像素尺寸与其他样本不同而删除。`101/111/121/131` 位于 `val/noisy/`
+独立鲁棒性测试组。
+输入图片首先按最长边缩放到 `800` 像素，再进行高斯平滑和
 `cv2.HoughCircles` 检测。主要参数为：
 
 | 参数 | 值 | 作用 |
@@ -29,7 +31,7 @@ uv run cv1-opencv-baseline val -o results/opencv
 | `param2` | 32 | 圆心投票检测阈值（当前参数） |
 | `minRadius` | 120 | 最小半径（原图坐标） |
 | `maxRadius` | 400 | 最大半径（原图坐标） |
-| `blurKernel` | 17 | Hough 前高斯平滑核大小 |
+| `blurKernel` | 11 | 普通背景默认 Hough 前高斯平滑核大小 |
 
 检测结果会换算回原始图像坐标，并保存到
 `results/opencv/report.json`。坐标原点在左上角，`x` 向右、`y` 向下。
@@ -147,7 +149,8 @@ uv run cv1-opencv-baseline val -o results/opencv
 
 高斯平滑已经直接加入当前 OpenCV 基线，位于 `HoughCircles` 调用之前，
 后续自定义算法只需复刻这一层包装流程，不需要重新设计额外的高噪声检测器。
-当前默认 `blurKernel=17`、`param2=32`、`minRadius=120`，其作用是削弱织物的短周期明暗变化，
+高噪声组使用 `blurKernel=17`；普通背景当前默认 `blurKernel=11`、`param2=32`、
+`minRadius=120`。高斯平滑用于削弱织物的短周期明暗变化，
 同时保留钱币尺度的外轮廓。文档前面的 `171/261` 坐标记录属于加入高斯平滑前的
 第一次基线运行，保留用于分析原始 OpenCV 包装函数的误检和漏检。
 
@@ -176,7 +179,7 @@ uv run cv1-opencv-baseline val -o results/opencv
 
 本次实验选择 `min-radius=120`、`param2=32` 作为当前默认参数。`min-radius`
 可以过滤部分较小的花纹伪圆，`param2` 则减少低支持度候选；二者结合后在当前
-保留的 15 张同尺寸样本上取得最高合格率。半径下限仍只是尺寸先验，不能单独
+保留的 11 张普通背景同尺寸样本上取得最高合格率。半径下限仍只是尺寸先验，不能单独
 判断候选是否来自花纹。
 
 ## 9. 实验边界因素

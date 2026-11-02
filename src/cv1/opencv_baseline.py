@@ -40,7 +40,7 @@ def detect_circles(
     min_radius: int = 120,
     max_radius: int = 400,
     max_dimension: int = 800,
-    blur_kernel: int = 17,
+    blur_kernel: int = 11,
 ) -> tuple[list[Circle], np.ndarray]:
     """预处理图像并调用 OpenCV HoughCircles，返回原图坐标下的圆。"""
     if image is None or image.ndim not in (2, 3):
@@ -138,7 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--blur-kernel",
         type=int,
-        default=17,
+        default=11,
         help="odd Gaussian blur kernel; larger values suppress periodic texture",
     )
     return parser
