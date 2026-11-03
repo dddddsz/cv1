@@ -27,6 +27,7 @@ def hough_circles(
     radius_step: int = 2,
     vote_threshold: int = 32,
     min_dist: float = 180.0,
+    dp: float = 1.2,
 ) -> list[DetectedCircle]:
     """沿边缘梯度正反方向投票，再进行圆心非极大值抑制。
 
@@ -40,13 +41,15 @@ def hough_circles(
         vote_threshold: 保留圆心候选所需的最少投票数。它是自定义
             累加器的票数，不等价于 OpenCV 的 `param2`。
         min_dist: 已选圆心之间的最小距离，过近的候选会被抑制。
+        dp: 圆心累加器的缩小比例。大于 1 时会合并相邻圆心投票，
+            减少像素级误差造成的投票分散，取值必须大于 0。
 
     返回:
         按半径从大到小排列的检测圆列表，每个元素包含圆心、半径和票数。
     """
     if edges.ndim != 2 or gradient_x.shape != edges.shape or gradient_y.shape != edges.shape:
         raise ValueError("edge and gradient arrays must have matching shapes")
-    if min_radius < 1 or max_radius < min_radius or radius_step < 1:
+    if min_radius < 1 or max_radius < min_radius or radius_step < 1 or dp <= 0:
         raise ValueError("invalid radius range")
 
     ys, xs = np.nonzero(edges > 0)
@@ -58,22 +61,31 @@ def hough_circles(
     xs, ys, gx, gy, length = xs[valid], ys[valid], gx[valid], gy[valid], length[valid]
     gx, gy = gx / length, gy / length
     height, width = edges.shape
+    accumulator_height = int(np.ceil(height / dp))
+    accumulator_width = int(np.ceil(width / dp))
     candidates: list[DetectedCircle] = []
     for radius in range(min_radius, max_radius + 1, radius_step):
-        accumulator = np.zeros((height, width), dtype=np.uint16)
+        accumulator = np.zeros((accumulator_height, accumulator_width), dtype=np.uint16)
         for sign in (-1.0, 1.0):
-            centers_x = np.rint(xs + sign * radius * gx).astype(np.int32)
-            centers_y = np.rint(ys + sign * radius * gy).astype(np.int32)
+            centers_x = np.rint((xs + sign * radius * gx) / dp).astype(np.int32)
+            centers_y = np.rint((ys + sign * radius * gy) / dp).astype(np.int32)
             inside = (
                 (centers_x >= 0)
-                & (centers_x < width)
+                & (centers_x < accumulator_width)
                 & (centers_y >= 0)
-                & (centers_y < height)
+                & (centers_y < accumulator_height)
             )
             np.add.at(accumulator, (centers_y[inside], centers_x[inside]), 1)
         peak_y, peak_x = np.nonzero(accumulator >= vote_threshold)
         for y, x in zip(peak_y, peak_x):
-            candidates.append(DetectedCircle(float(x), float(y), float(radius), int(accumulator[y, x])))
+            candidates.append(
+                DetectedCircle(
+                    float(x * dp),
+                    float(y * dp),
+                    float(radius),
+                    int(accumulator[y, x]),
+                )
+            )
 
     candidates.sort(key=lambda circle: circle.votes, reverse=True)
     selected: list[DetectedCircle] = []

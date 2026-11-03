@@ -58,3 +58,6 @@ uv run cv1-custom val -o results/custom
 边缘保留；高噪声组建议显式使用 `--blur-kernel 17`。自定义版本也可融合额外
 平滑尺度，以改善 `101.jpg` 这类
 高噪声图像；使用 `--no-multi-scale` 可关闭该处理。
+
+完整的自定义算法流程、函数参数、参数影响和最终拟合结果见
+[`docs/algorithm.md`](docs/algorithm.md)。

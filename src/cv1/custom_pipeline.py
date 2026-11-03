@@ -27,7 +27,9 @@ def detect_circles(image, **parameters: object) -> tuple[list[Circle], object, o
             min_radius/max_radius: 原图坐标下的半径搜索范围。
             param2: 参考 OpenCV 的投票阈值，内部映射为自定义票数。
             min_dist: 原图坐标下的圆心最小距离。
-            multi_scale: 是否融合 17 和 21 两个平滑尺度的边缘，改善高噪声图像。
+            dp: 自定义圆心累加器缩放比例，用于合并相邻像素投票。
+            multi_scale: 是否融合当前核和当前核加 4 的两个平滑尺度边缘，
+                改善高噪声图像。
 
     返回:
         circles: 原始图像坐标下的圆心和半径列表。
@@ -62,6 +64,7 @@ def detect_circles(image, **parameters: object) -> tuple[list[Circle], object, o
         # 自定义累加器的票数尺度与 OpenCV param2 不同，使用同名参数做近似映射。
         vote_threshold=max(2, round(int(parameters["param2"]) / 4)),
         min_dist=float(parameters["min_dist"]) * scale,
+        dp=float(parameters["dp"]),
     )
     return [
         Circle(c.x / scale, c.y / scale, c.radius / scale) for c in circles
@@ -102,6 +105,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("input", type=Path)
     parser.add_argument("-o", "--output", type=Path, default=Path("results/custom"))
     parser.add_argument("--min-dist", type=float, default=180.0)
+    parser.add_argument("--dp", type=float, default=1.0)
     parser.add_argument("--param1", type=float, default=100.0)
     parser.add_argument("--param2", type=int, default=32)
     parser.add_argument("--min-radius", type=int, default=120)
